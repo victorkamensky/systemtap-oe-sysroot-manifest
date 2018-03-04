@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+
+  <default revision="master" remote="github" sync-j="4" />
+  <remote name="github"
+          fetch="https://github.com/victorkamensky"
+          review="https://github.com/victorkamensky"
+	  />
+  <remote name="openembedded"
+          fetch="http://git.openembedded.org"
+          review="http://git.openembedded.org"
+          />
+
+  <project path="openembedded-core" name="openembedded-core" revision="9486c44640b0a75379f1b645e5588683c014c34f" />
+  <project path="openembedded-core/bitbake" name="bitbake" remote="openembedded" revision="34da85efb4cf76389f97d233571f79b733986ede" />
+</manifest>
