@@ -1,0 +1,214 @@
+User land application function tracing
+--------------------------------------
+
+After script started on target mkdir command was typed and
+executed. Since it is core-minimal-image and mkdir really
+/bin/busybox.nosuid application script will trace all instances
+of busybox. First straces come out from 'sh' and followed
+by execution of mkdir.
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ cat mkdir_func.stp
+# trace all function from mkdir executable; in case
+# of core-image-minimal mkdir is /bin/busybox.nosuid
+# i.e all function in busybox will be traced
+
+probe process("mkdir").function("*").call {
+  printf ("%s -> %s\n", thread_indent(1), ppfunc())
+}
+probe process("mkdir").function("*").return {
+  printf ("%s <- %s\n", thread_indent(-1), ppfunc())
+}
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s mkdir_func.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+sh: /bin/bash: not found
+Pass 1: parsed user script and 469 library scripts using 72436virt/43620res/5404shr/38476data kb, in 140usr/20sys/193real ms.
+WARNING: function _start return probe is blacklisted: keyword at mkdir_func.stp:8:1
+ source: probe process("mkdir").function("*").return {
+         ^
+Pass 2: analyzed script: 2897 probes, 9 functions, 4 embeds, 2 globals using 247196virt/219340res/6348shr/213236data kb, in 3010usr/310sys/14934real ms.
+Pass 3: using cached /home/kamensky/.systemtap/cache/d3/stap_d31b8967171bbccd50757fea3b2138e6_1618021.c
+Pass 4: using cached /home/kamensky/.systemtap/cache/d3/stap_d31b8967171bbccd50757fea3b2138e6_1618021.ko
+Pass 5: starting run.
+     0 sh(219): -> safe_read
+  2229 sh(219): <- safe_read
+     0 sh(219): -> put_cur_glyph_and_inc_cursor
+   541 sh(219):  -> bb_putchar
+  1496 sh(219):  <- bb_putchar
+  1691 sh(219): <- put_cur_glyph_and_inc_cursor
+     0 sh(219): -> fflush_all
+   710 sh(219): <- fflush_all
+     0 sh(219): -> read_key
+   224 sh(219):  -> safe_poll
+ 41050 sh(219):  <- safe_poll
+ 41303 sh(219):  -> safe_read
+...
+     0 sh(270): -> tryexec
+ 31292 mkdir(270):  -> _start
+ 32079 mkdir(270):   -> __libc_csu_init
+ 32201 mkdir(270):    -> _init
+ 32318 mkdir(270):    <- _init
+ 32618 mkdir(270):    -> frame_dummy
+ 32736 mkdir(270):     -> register_tm_clones
+ 32849 mkdir(270):     <- register_tm_clones
+ 32873 mkdir(270):    <- frame_dummy
+ 32932 mkdir(270):   <- __libc_csu_init
+ 33002 mkdir(270):   -> main
+ 33341 mkdir(270):    -> bb_basename
+ 33701 mkdir(270):    <- bb_basename
+
+
+User land application function tracing
+--------------------------------------
+
+Checking SystemTap statement probes, inspect some internal
+variables during execution. After script started on target
+mkdir command was typed and 'mkdir -p hello/from/stap/script'
+executed.
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ cat mkdir_stmt.stp
+# test SystemTap ability to put uprobe at specific line
+# number and retrieve user-land variables, using proper
+# DWARF symbolic information. It is geared to mkdir from
+# busybox, will be triggered when mkdir command executed
+# on target
+
+probe process("mkdir").statement("bb_make_directory@make_directory.c") {
+  printf ("bb_make_directory(%s, 0x%x, 0x%x)\n", user_string($path), $mode, $flags)
+}
+
+probe process("mkdir").statement("bb_make_directory@make_directory.c:58") {
+  printf ("bb_make_directory: s=%s\n", user_string($s))
+}
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s mkdir_stmt.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+sh: /bin/bash: not found
+Pass 1: parsed user script and 469 library scripts using 72436virt/43624res/5404shr/38476data kb, in 90usr/20sys/107real ms.
+Pass 2: analyzed script: 2 probes, 6 functions, 1 embed, 0 globals using 76440virt/48692res/6200shr/42480data kb, in 10usr/0sys/16real ms.
+Pass 3: translated to C into "/tmp/stap6dohdZ/stap_2d255211acd103641cc36dff2eb6c977_4748_src.c" using 76440virt/48880res/6388shr/42480data kb, in 20usr/20sys/467real ms.
+Pass 4: compiled C into "stap_2d255211acd103641cc36dff2eb6c977_4748.ko" in 1930usr/100sys/8856real ms.
+Pass 5: starting run.
+bb_make_directory(hello/from/stap/script, 0xffffffffffffffff, 0x4)
+bb_make_directory: s=hello/from/stap/script
+bb_make_directory: s=from/stap/script
+bb_make_directory: s=stap/script
+bb_make_directory: s=script
+
+
+User land application tracing functions in loaded library
+---------------------------------------------------------
+
+Checking functions tracing from library
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ cat mkdir_libcio.stp
+# trace libc function that starts with __IO_ prefix executed
+# from mkdir; in case of core-image-minimal mkdir is
+# /bin/busybox.nosuid, ie all glibc with __IO_ prefix executed
+# by all busybox instances will be executed
+
+probe process("mkdir").library("/lib/libc.so.6").function("_IO_*").call {
+  printf ("%s -> %s\n", thread_indent(1), ppfunc())
+}
+probe process("mkdir").library("/lib/libc.so.6").function("_IO_*").return {
+  printf ("%s <- %s\n", thread_indent(-1), ppfunc())
+}
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s mkdir_libcio.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+sh: /bin/bash: not found
+Pass 1: parsed user script and 469 library scripts using 72436virt/43652res/5432shr/38476data kb, in 90usr/20sys/105real ms.
+Pass 2: analyzed script: 406 probes, 9 functions, 4 embeds, 2 globals using 241920virt/213920res/6336shr/207960data kb, in 910usr/120sys/1299real ms.
+Pass 3: using cached /home/kamensky/.systemtap/cache/12/stap_12e99f05da3699265c7628a69065a212_230710.c
+Pass 4: using cached /home/kamensky/.systemtap/cache/12/stap_12e99f05da3699265c7628a69065a212_230710.ko
+Pass 5: starting run.
+     0 sh(219): -> _IO_fflush
+  1387 sh(219):  -> _IO_flush_all
+  1936 sh(219):   -> _IO_flush_all_lockp
+  2726 sh(219):    -> _IO_new_file_overflow
+  3182 sh(219):     -> _IO_new_do_write
+  3474 sh(219):      -> _IO_new_file_write
+  3854 sh(219):      <- _IO_new_file_write
+  4058 sh(219):     <- _IO_new_do_write
+  4085 sh(219):    <- _IO_new_file_overflow
+  4189 sh(219):   <- _IO_flush_all_lockp
+  4215 sh(219):  <- _IO_flush_all
+  4229 sh(219): <- _IO_fflush
+
+
+Tracing system call from specific user land process
+---------------------------------------------------
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ cat mkdir_syscall.stp 
+# trace all system calls from mkdir executable; in case
+# of core-image-minimal mkdir is /bin/busybox.nosuid
+# i.e all system calls in busybox will be traced
+
+probe process("mkdir").syscall {
+  printf ("%s(%d): syscall(%d, arg1=0x%x, arg2=0x%x, ...)\n", execname(), tid(), $syscall, $arg1, $arg2)
+}
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s mkdir_syscall.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+sh: /bin/bash: not found
+Pass 1: parsed user script and 469 library scripts using 72436virt/43636res/5420shr/38476data kb, in 110usr/0sys/107real ms.
+Pass 2: analyzed script: 1 probe, 4 functions, 4 embeds, 0 globals using 231620virt/203676res/6276shr/197660data kb, in 750usr/110sys/876real ms.
+Pass 3: using cached /home/kamensky/.systemtap/cache/13/stap_1310908cb5f1e5cacb8e744087b6436b_4795.c
+Pass 4: using cached /home/kamensky/.systemtap/cache/13/stap_1310908cb5f1e5cacb8e744087b6436b_4795.ko
+Pass 5: starting run.
+syslogd(210): syscall(0, arg1=0x0, arg2=0x8852d8, ...)
+klogd(212): syscall(103, arg1=0x2, arg2=0x683f88, ...)
+start_getty(217): syscall(61, arg1=0xffffffffffffffff, arg2=0x7ffed1a1dcec, ...)
+start_getty(218): syscall(61, arg1=0xffffffffffffffff, arg2=0x7ffed699018c, ...)
+sh(219): syscall(219, arg1=0x7ffefaa5a6e8, arg2=0x1, ...)
+getty(252): syscall(0, arg1=0x0, arg2=0x7ffc69eeb557, ...)
+getty(253): syscall(0, arg1=0x0, arg2=0x7ffe3cd2f507, ...)
+sh(379): syscall(61, arg1=0xffffffffffffffff, arg2=0x7ffd143f09cc, ...)
+
+
+Kernel functions tracing
+------------------------
+
+On target 'cat /proc/meminfo' was executed to trigger execution
+of meminfo_proc_show function in kernel
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ cat meminfo.stp 
+# triggered when meminfo_proc_show function is executed in
+# kernel, i.e when one do 'cat /proc/meminfo'
+
+probe kernel.function("meminfo_proc_show") {
+	println("meminfo_proc_show called")
+}
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s meminfo.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+sh: /bin/bash: not found
+Pass 1: parsed user script and 469 library scripts using 72436virt/43668res/5448shr/38476data kb, in 100usr/0sys/105real ms.
+Pass 2: analyzed script: 1 probe, 0 functions, 0 embeds, 0 globals using 123168virt/95204res/6220shr/89208data kb, in 710usr/20sys/747real ms.
+Pass 3: using cached /home/kamensky/.systemtap/cache/f2/stap_f26720e3348d2804727807fe8257756b_2622.c
+Pass 4: using cached /home/kamensky/.systemtap/cache/f2/stap_f26720e3348d2804727807fe8257756b_2622.ko
+Pass 5: starting run.
+meminfo_proc_show called
+
+Kernel statement tracing
+------------------------
+
+Check kernel statement tracing and ability to print kernel
+function local arguments and variables. On target 'cat /proc/meminfo'
+was executed to trigger execution of meminfo_proc_show function in
+kernel
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ cat meminfo_stmt.stp
+# triggered when meminfo_proc_show function is executed in
+# kernel, i.e when one do 'cat /proc/meminfo'
+
+probe kernel.statement("show_val_kb@meminfo.c") {
+	printf("%s%16.d kB\n", kernel_string($s), $num * 4)
+}
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s meminfo_stmt.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+sh: /bin/bash: not found
+Pass 1: parsed user script and 469 library scripts using 72436virt/43640res/5424shr/38476data kb, in 110usr/0sys/106real ms.
+Pass 2: analyzed script: 1 probe, 3 functions, 0 embeds, 0 globals using 176212virt/144720res/6212shr/142252data kb, in 250usr/40sys/373real ms.
+Pass 3: using cached /home/kamensky/.systemtap/cache/cc/stap_cccffc207694df7adfe5b2040200225a_3609.c
+Pass 4: using cached /home/kamensky/.systemtap/cache/cc/stap_cccffc207694df7adfe5b2040200225a_3609.ko
+Pass 5: starting run.
+MemTotal:                 239604 kB
+MemFree:                  198072 kB
+MemAvailable:             206312 kB
+Buffers:                     544 kB
+Cached:                     7400 kB
+SwapCached:                    0 kB
+Active:                    12472 kB
+Inactive:                   1532 kB
+Active(anon):               6252 kB
