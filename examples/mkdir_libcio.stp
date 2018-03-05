@@ -1,0 +1,11 @@
+# trace libc function that starts with __IO_ prefix executed
+# from mkdir; in case of core-image-minimal mkdir is
+# /bin/busybox.nosuid, ie all glibc with __IO_ prefix executed
+# by all busybox instances will be executed
+
+probe process("mkdir").library("/lib/libc.so.6").function("_IO_*").call {
+  printf ("%s -> %s\n", thread_indent(1), ppfunc())
+}
+probe process("mkdir").library("/lib/libc.so.6").function("_IO_*").return {
+  printf ("%s <- %s\n", thread_indent(-1), ppfunc())
+}

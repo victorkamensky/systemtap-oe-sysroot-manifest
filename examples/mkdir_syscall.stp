@@ -1,0 +1,7 @@
+# trace all system calls from mkdir executable; in case
+# of core-image-minimal mkdir is /bin/busybox.nosuid
+# i.e all system calls in busybox will be traced
+
+probe process("mkdir").syscall {
+  printf ("%s(%d): syscall(%d, arg1=0x%x, arg2=0x%x, ...)\n", execname(), tid(), $syscall, $arg1, $arg2)
+}

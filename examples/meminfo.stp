@@ -1,0 +1,6 @@
+# triggered when meminfo_proc_show function is executed in
+# kernel, i.e when one do 'cat /proc/meminfo'
+
+probe kernel.function("meminfo_proc_show") {
+	println("meminfo_proc_show called")
+}

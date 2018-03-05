@@ -1,0 +1,6 @@
+# triggered when meminfo_proc_show function is executed in
+# kernel, i.e when one do 'cat /proc/meminfo'
+
+probe kernel.statement("show_val_kb@meminfo.c") {
+	printf("%s%16.d kB\n", kernel_string($s), $num * 4)
+}

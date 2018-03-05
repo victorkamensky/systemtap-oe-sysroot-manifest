@@ -1,0 +1,14 @@
+# test SystemTap ability to put uprobe at specific line
+# number and retrieve user-land variables, using proper
+# DWARF symbolic information. It is geared to mkdir from
+# busybox, will be triggered when mkdir command executed
+# on target
+
+probe process("mkdir").statement("bb_make_directory@make_directory.c") {
+  printf ("bb_make_directory(%s, 0x%x, 0x%x)\n", user_string($path), $mode, $flags)
+}
+
+probe process("mkdir").statement("bb_make_directory@make_directory.c:58") {
+  printf ("bb_make_directory: s=%s\n", user_string($s))
+}
+

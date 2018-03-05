@@ -1,0 +1,10 @@
+# trace all function from mkdir executable; in case
+# of core-image-minimal mkdir is /bin/busybox.nosuid
+# i.e all function in busybox will be traced
+
+probe process("mkdir").function("*").call {
+  printf ("%s -> %s\n", thread_indent(1), ppfunc())
+}
+probe process("mkdir").function("*").return {
+  printf ("%s <- %s\n", thread_indent(-1), ppfunc())
+}
