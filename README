@@ -1,0 +1,233 @@
+Overview
+--------
+
+Setup arranged by this repo manifest could be used to test set of systemtap
+--sysroot option related fixes. In systemtap --sysroot option should be used
+when stap compiler is used in cross compilation mode. I.e stap works on
+host against target sysroot, and other target artifacts residing on host
+and produces SystemTap compiled module, which needs to be copied to a target
+and activated there with staprun utility.
+
+Openembedded (OE) is great cross compiling environment that supports
+several qemu based virtual targets with range of different CPU types. So
+it should be very good for testing SystemTap --sysroot option. And eventually
+it will be great if OE would absorb SystemTap --sysroot based operational
+mode and make it easy to use.
+
+Further instructions describe steps how systemtap with --sysroot capabilities
+could be used in OE environment. Below instructions should generally
+complete, if not there are a lot of great resources about OE on the net.
+
+Build
+-----
+
+We use repo to organize openembedded-core and bitbake components into required
+build environment.
+
+o pull systemtap-oe-sysroot repo:
+
+mkdir systemtap-oe-sysroot
+cd systemtap-oe-sysroot
+repo init -u https://github.com/victorkamensky/systemtap-oe-sysroot-manifest.git
+repo sync
+
+o run openembedded-core setup script:
+
+source ./openembedded-core/oe-init-build-env
+
+o configure any other OE build parameters in resulting conf/local.conf
+as needed. I.e one may change DL_DIR location to your sources directory if
+you have any. This step is optional.
+
+o build core-image-minimal image. This step will take time, it builds small
+but full Linux distro:
+
+bitbake core-image-minimal
+
+o build systemtap-native package, this build systemtap as host tool:
+
+bitbake systemtap-native
+
+o note you can edit conf/local.conf MACHINE setting and choose machine
+with another CPU type like qemuarm, qemumips64, etc and repeat all
+steps for another MACHINE type.
+
+Run
+---
+
+o drop into openembedded-core environment as usual
+
+source ./openembedded-core/oe-init-build-env
+
+o start qemu through runqemu oe command, it should start your target linux
+under qemu
+
+runqemu
+
+o in another terminal drop into openembedded-core environment again
+
+source ./openembedded-core/oe-init-build-env
+
+o change directory to directory with your SystemTap scripts
+
+cd yourscriptsdir
+
+o compile systemtap script, if you choose another oe image change -i option
+properly
+
+crosstap2 -s yourscript.stp -i core-image-minimal
+
+during above step yourscript.ko module should be created
+
+o copy yourscript.ko to target that runs in qemu, if you image does
+not have ssh server you can copy yourscript.ko by some other means i.e
+with tftp command.
+
+scp yourscript.ko root@192.168.7.2:~
+
+o ssh into target
+
+ssh root@192.168.7.2
+
+o activate script with staprun command, observe script in action, stop script
+with Ctrl-C command when done
+
+staprun yourscript.ko
+
+o if you would like to pass additional options to stap compile pass them
+to crosstap2 after -- argument. For example
+
+crosstap2 -s yourscript.stp -i core-image-minimal -- -v
+
+o if target available through ssh, and in this setup it should, you can
+use --remote option to down load and start script right from crosstap2
+script.
+
+crosstap2 -s yourscript.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+
+Example
+-------
+
+Find more example in EXAMPLES file alongside of this file.
+
+Here is example with simple function tracing in mkdir. But
+in core-image-minimal mkdir command is  symbolic link to
+busybox.nosuid, so all busybox based commands will be traced
+as result.
+
+After script started to run, something was typed on console so
+some busybox related (sh) execution got triggered
+
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ cat mkdir_func.stp
+# trace all function from mkdir executable; in case
+# of core-image-minimal mkdir is /bin/busybox.nosuid
+# i.e all function in busybox will be traced
+
+probe process("mkdir").function("*").call {
+  printf ("%s -> %s\n", thread_indent(1), ppfunc())
+}
+probe process("mkdir").function("*").return {
+  printf ("%s <- %s\n", thread_indent(-1), ppfunc())
+}
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s mkdir_func.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+sh: /bin/bash: not found
+Pass 1: parsed user script and 469 library scripts using 72436virt/43620res/5404shr/38476data kb, in 140usr/20sys/193real ms.
+WARNING: function _start return probe is blacklisted: keyword at mkdir_func.stp:8:1
+ source: probe process("mkdir").function("*").return {
+         ^
+Pass 2: analyzed script: 2897 probes, 9 functions, 4 embeds, 2 globals using 247196virt/219340res/6348shr/213236data kb, in 3010usr/310sys/14934real ms.
+Pass 3: using cached /home/kamensky/.systemtap/cache/d3/stap_d31b8967171bbccd50757fea3b2138e6_1618021.c
+Pass 4: using cached /home/kamensky/.systemtap/cache/d3/stap_d31b8967171bbccd50757fea3b2138e6_1618021.ko
+Pass 5: starting run.
+     0 sh(219): -> safe_read
+  2229 sh(219): <- safe_read
+     0 sh(219): -> put_cur_glyph_and_inc_cursor
+   541 sh(219):  -> bb_putchar
+  1496 sh(219):  <- bb_putchar
+  1691 sh(219): <- put_cur_glyph_and_inc_cursor
+     0 sh(219): -> fflush_all
+   710 sh(219): <- fflush_all
+     0 sh(219): -> read_key
+   224 sh(219):  -> safe_poll
+ 41050 sh(219):  <- safe_poll
+ 41303 sh(219):  -> safe_read
+...
+     0 sh(270): -> tryexec
+ 31292 mkdir(270):  -> _start
+ 32079 mkdir(270):   -> __libc_csu_init
+ 32201 mkdir(270):    -> _init
+ 32318 mkdir(270):    <- _init
+ 32618 mkdir(270):    -> frame_dummy
+ 32736 mkdir(270):     -> register_tm_clones
+ 32849 mkdir(270):     <- register_tm_clones
+ 32873 mkdir(270):    <- frame_dummy
+ 32932 mkdir(270):   <- __libc_csu_init
+ 33002 mkdir(270):   -> main
+ 33341 mkdir(270):    -> bb_basename
+ 33701 mkdir(270):    <- bb_basename
+
+Changes Description
+-------------------
+
+These summary of changes done in openembedded-core
+
+d6cd302 linux-yocto/4.12: switch to kernel-meta tree that contains CONIFG_DEBUG_INFO fix
+c5cca6b linux-yocto/4.15: switch to kernel-meta tree that contains CONIFG_DEBUG_INFO fix
+
+    Switch kernel meta repository to one that contains kernel config CONIFG_DEBUG_INFO fix
+    posted on linux-yocto as
+
+    https://lists.yoctoproject.org/pipermail/linux-yocto/2018-March/006937.html
+
+    Otherwise compiled kernel would not have DWARF symbols information
+
+5937d06 systemtap: supports mips starting with version 3.1
+
+    Enable systemtap on mips. Current openembedded information about mips support
+    is obsolete. Posted on openembedded-core@lists.openembedded.org as
+
+    http://lists.openembedded.org/pipermail/openembedded-core/2018-March/148308.html
+
+afe36dd systemtap: bring in PR22551 fix that addresses build against 4.15 kernel issue
+
+    Backport to systemtap 3.2 version of fix needed to run against 4.15 kernel.
+    Posted on openembedded-core@lists.openembedded.org as
+
+    http://lists.openembedded.org/pipermail/openembedded-core/2018-March/148309.html
+
+4ea1e1f Revert "systemtap: Cross compilation fix"
+
+    openembedded-core had some quick fix to access kernel build tree. The fix is not
+    needed. It is superseded by proposed systemtap --sysroot patches that follow.
+
+f53d95d systemtap: support --sysroot option in variety of situations in cross build
+
+    Set of systemtap --sysroot support fixes. Which is essential to run proposed
+    functionality.
+
+a1c90c6 image: add IMAGE_GEN_COMBINED_DEBUGFS build option
+
+    Fix in openembedded-core to support build option that creates target sysroot
+    overlayed with user land debug symbols. There is already IMAGE_GEN_DEBUGFS
+    but that one creates two separate tarballs, target and debug symbols, that
+    need to be recombined manually. IMAGE_GEN_COMBINED_DEBUGFS provides more
+    smooth work flow
+
+4388a76 systemtap: introduce utils variant of systemtap package build
+
+    Variant of systemtap build that compiles and include only very small set
+    SystemTap utilities needed on target to compliment SystemTap compiler
+    running on host in cross compilation mode.
+
+c4ad1d1 crosstap2: wrapper to build systemtap script on host against given target
+
+    Wrapper script that takes care of assembling all options that need to be passed
+    to stap in cross compiled environment case. Note in openembedded-core there
+    is crosstap script, but it can build SystemTap script that work with kernel
+    only.
+
+d4a6a2a local.conf: add systemtap-utils and dropbear, enable combined debugfs
+c50f38c local.conf: switch default MACHINE to qemux86-64
+
+    Set few default to simplify steps description for folks who want to try it out
+
