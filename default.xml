@@ -11,6 +11,6 @@
           review="http://git.openembedded.org"
           />
 
-  <project path="openembedded-core" name="openembedded-core" revision="9486c44640b0a75379f1b645e5588683c014c34f" />
+  <project path="openembedded-core" name="openembedded-core" revision="d4a6a2aa49b2bc25f74cd673ce9f5e39b390f563" />
   <project path="openembedded-core/bitbake" name="bitbake" remote="openembedded" revision="34da85efb4cf76389f97d233571f79b733986ede" />
 </manifest>
