@@ -1,0 +1,18 @@
+# trace all function from mkdir executable; in case
+# of core-image-minimal mkdir is /bin/busybox.nosuid
+# i.e all function in busybox will be traced
+
+probe process("mkdir").function("*").call {
+  printf ("%s -> %s\n", thread_indent(0), ppfunc())
+}
+# trace libc function 
+# from mkdir; in case of core-image-minimal mkdir is
+# /bin/busybox.nosuid, i.e all function in glibc called 
+# by all busybox instances will be executed
+# note we do not use .return probes in case of all
+# glibc function, since it would not work for function
+# that do not return i.e setjmp, longjmp, etc
+
+probe process("mkdir").library("/lib/libc.so.6").function("*").call {
+  printf ("%s -> %s\n", thread_indent(0), ppfunc())
+}
