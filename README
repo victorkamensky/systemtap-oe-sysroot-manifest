@@ -171,63 +171,34 @@ Changes Description
 
 These summary of changes done in openembedded-core
 
-d6cd302 linux-yocto/4.12: switch to kernel-meta tree that contains CONIFG_DEBUG_INFO fix
-c5cca6b linux-yocto/4.15: switch to kernel-meta tree that contains CONIFG_DEBUG_INFO fix
+f8f2351 image: add image-combined-dbg helper class
 
-    Switch kernel meta repository to one that contains kernel config CONIFG_DEBUG_INFO fix
-    posted on linux-yocto as
+    Helper user class to produce combined rootfs-dbg directory where
+    target symbols resides along with corresponding symbol files
 
-    https://lists.yoctoproject.org/pipermail/linux-yocto/2018-March/006937.html
-
-    Otherwise compiled kernel would not have DWARF symbols information
-
-5937d06 systemtap: supports mips starting with version 3.1
-
-    Enable systemtap on mips. Current openembedded information about mips support
-    is obsolete. Posted on openembedded-core@lists.openembedded.org as
-
-    http://lists.openembedded.org/pipermail/openembedded-core/2018-March/148308.html
-
-afe36dd systemtap: bring in PR22551 fix that addresses build against 4.15 kernel issue
-
-    Backport to systemtap 3.2 version of fix needed to run against 4.15 kernel.
-    Posted on openembedded-core@lists.openembedded.org as
-
-    http://lists.openembedded.org/pipermail/openembedded-core/2018-March/148309.html
-
-4ea1e1f Revert "systemtap: Cross compilation fix"
+1463e08 Revert "systemtap: Cross compilation fix"
 
     openembedded-core had some quick fix to access kernel build tree. The fix is not
     needed. It is superseded by proposed systemtap --sysroot patches that follow.
 
-f53d95d systemtap: support --sysroot option in variety of situations in cross build
+2d72175 systemtap: support --sysroot option in variety of situations in cross build
 
-    Set of systemtap --sysroot support fixes. Which is essential to run proposed
-    functionality.
+    Backport ofsSet of systemtap --sysroot support fixes. Which is essential to run
+    proposed functionality.
 
-a1c90c6 image: add IMAGE_GEN_COMBINED_DEBUGFS build option
+99ecead systemtap: create translator packageconfig
 
-    Fix in openembedded-core to support build option that creates target sysroot
-    overlayed with user land debug symbols. There is already IMAGE_GEN_DEBUGFS
-    but that one creates two separate tarballs, target and debug symbols, that
-    need to be recombined manually. IMAGE_GEN_COMBINED_DEBUGFS provides more
-    smooth work flow
+    Introduce new translator packageconfig, if not specified. Systemtap will
+    contain minimal set of run-time utilities to active cross-compiled modules
 
-4388a76 systemtap: introduce utils variant of systemtap package build
-
-    Variant of systemtap build that compiles and include only very small set
-    SystemTap utilities needed on target to compliment SystemTap compiler
-    running on host in cross compilation mode.
-
-c4ad1d1 crosstap2: wrapper to build systemtap script on host against given target
+611630e crosstap: replace script with new python based implementation
 
     Wrapper script that takes care of assembling all options that need to be passed
-    to stap in cross compiled environment case. Note in openembedded-core there
-    is crosstap script, but it can build SystemTap script that work with kernel
-    only.
+    to stap in cross compiled environment case. It is backward compatible drop in
+    full replacement of existing crosstap script
 
-d4a6a2a local.conf: add systemtap-utils and dropbear, enable combined debugfs
-c50f38c local.conf: switch default MACHINE to qemux86-64
+
+805b348 local.conf: switch default MACHINE to qemux86-64
+f0f0f37 local.conf: add systemtap and dropbear, enable combined debugfs
 
     Set few default to simplify steps description for folks who want to try it out
-
