@@ -28,7 +28,7 @@ o pull systemtap-oe-sysroot repo:
 
 mkdir systemtap-oe-sysroot
 cd systemtap-oe-sysroot
-repo init -u https://github.com/victorkamensky/systemtap-oe-sysroot-manifest.git
+repo init -u https://github.com/victorkamensky/systemtap-oe-sysroot-manifest.git -b oe_sysroot_v1
 repo sync
 
 o run openembedded-core setup script:
