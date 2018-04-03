@@ -75,7 +75,7 @@ cd yourscriptsdir
 o compile systemtap script, if you choose another oe image change -i option
 properly
 
-crosstap2 -s yourscript.stp -i core-image-minimal
+crosstap -s yourscript.stp -i core-image-minimal
 
 during above step yourscript.ko module should be created
 
@@ -95,15 +95,15 @@ with Ctrl-C command when done
 staprun yourscript.ko
 
 o if you would like to pass additional options to stap compile pass them
-to crosstap2 after -- argument. For example
+to crosstap after -- argument. For example
 
-crosstap2 -s yourscript.stp -i core-image-minimal -- -v
+crosstap -s yourscript.stp -i core-image-minimal -- -v
 
 o if target available through ssh, and in this setup it should, you can
-use --remote option to down load and start script right from crosstap2
+use --remote option to down load and start script right from crosstap
 script.
 
-crosstap2 -s yourscript.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+crosstap -s yourscript.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
 
 Example
 -------
@@ -129,7 +129,7 @@ probe process("mkdir").function("*").call {
 probe process("mkdir").function("*").return {
   printf ("%s <- %s\n", thread_indent(-1), ppfunc())
 }
-kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap2 -s mkdir_func.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
+kamensky@kamensky-w541:/wd6/oe/20180304/systemtap-oe-sysroot/systemtap$ crosstap -s mkdir_func.stp -i core-image-minimal --remote root@192.168.7.2 -- -v
 sh: /bin/bash: not found
 Pass 1: parsed user script and 469 library scripts using 72436virt/43620res/5404shr/38476data kb, in 140usr/20sys/193real ms.
 WARNING: function _start return probe is blacklisted: keyword at mkdir_func.stp:8:1
